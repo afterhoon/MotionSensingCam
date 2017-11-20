@@ -1,3 +1,8 @@
+/*
+2014_05_09
+배경 차영상에 의한 이동 물체 검출
+*/
+
 #include <iostream>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
@@ -43,14 +48,14 @@ int main()
 	IplImage *frame = NULL;
 
 	int t = 0;    // frame count
-	int nThreshold = 50;
+	int nThreshold = 50;	// Threshold 값
 
 	while (1) {
 		// capture로부터 프레임을 획득하여 포인터 frame에 저장한다.
 		frame = cvQueryFrame(capture);
 		if (!frame)    break;
 		t++;
-		//std::cout << (isCatch(diffImage) ? "MOVE!! " : "XXXXXX ") << t << "       " << isCatch(diffImage) << std::endl;
+		//std::cout << t << "       " << isCatch(diffImage) << std::endl;
 
 		if (isCatch(diffImage) > 0 && start == 0) start = t;
 		if (isCatch(diffImage) == 0 && start != 0) {
@@ -59,19 +64,25 @@ int main()
 			end = 0;
 		}
 
-		if (start > 0) std::cout << "ㅁ";
+		// 영상에서 움직임이 있는지 없는지를 도스창에 출력
+		if (start > 0) std::cout << "■";
+		else std::cout << "□";
 
 
-		// cvCvtColor 함수를 사용하여 cvQueryFrame 함수로 획득한 frame을 그레이 스케일 영상으로 변환하여 grayImage에 저장한다.
+		// cvCvtColor 함수를 사용하여 cvQueryFrame 함수로 획득한 frame을 그레이 스케일 영상으로 변환하여 currImage에 저장한다.
 		cvCvtColor(frame, currImage, CV_BGR2GRAY);
 
-		// cvAbsDiff 함수로 현재의 입력 비디오 프레임과 그레이 스케일 영상인 grayImage와 배경 영상인 bkgImage와의 차이의 절대값을 계산하여 diffImage에 저장한다.
-		cvAbsDiff(currImage, prevImage, diffImage);
+		cvThreshold(currImage, currImage, nThreshold, 255, CV_THRESH_BINARY);
 
-		// diffImage에서 0인 화소는 변화가 없는 화소이며, 값이 크면 클수록 배경 영상과의 차이가 크게 일어난 화소이다.
+		// cvAbsDiff 함수로 현재의 입력 비디오 프레임과 그레이 스케일 영상인 grayImage와 배경 영상인 bkgImage와의 차이의 절대값을 계산하여 diffImage에 저장한다.
+		//cvAbsDiff(currImage, prevImage, diffImage);
+		cvSub(currImage, prevImage, diffImage, 0);
+
+
+		// diffImage에서 0인 화소는 변화가 없는 화소이며, 값이 크면 클수록 이전 영상과의 차이가 크게 일어난 화소이다.
 		// cvThreshold 함수를 사용하여 cvThreshold=50 이상인 화소만을 255로 저장하고, 임계값 이하인 값은 0으로 저장한다.
 		// 임계값은 실험 또는 자동으로 적절히 결정해야 한다.
-		cvThreshold(diffImage, diffImage, nThreshold, 255, CV_THRESH_BINARY);
+		//cvThreshold(diffImage, diffImage, nThreshold, 255, CV_THRESH_BINARY);
 
 		cvShowImage("prevImage", prevImage);
 		cvShowImage("currImage", currImage);
@@ -83,6 +94,7 @@ int main()
 		}
 
 		cvCvtColor(frame, prevImage, CV_BGR2GRAY);
+		cvThreshold(prevImage, prevImage, nThreshold, 255, CV_THRESH_BINARY);
 	}
 
 	cvDestroyAllWindows();
