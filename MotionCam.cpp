@@ -1,5 +1,11 @@
+#include <iostream>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+
+typedef struct point {
+	int start;
+	int end;
+} Point;
 
 int isCatch(IplImage *image) {
 	int height, width;
@@ -15,52 +21,70 @@ int isCatch(IplImage *image) {
 		for (j = 0; j < width; j++)
 			if (data[i*width + j] == 255) moved++;
 
-	return moved > 1000 ? moved : 0;
+	return moved;
 }
 
 int main()
 {
-	int cnt = 0;
-	int nThreshold = 50;
+	Point arr[10];
+	int count = 0;
 	int start = 0, end = 0;
 
+	// 움직임을 검출할 영상을 포인터 capture에 저장한다.
 	CvCapture *capture = cvCaptureFromFile("test2.mp4");
 	if (!capture) {
-		printf("ERROR!!!! Can't find video file\n");
+		std::cout << "The video file was not found" << std::endl;
 		return 0;
 	}
 
+	// 영상의 사이즈를 구한다.
 	int width = (int)cvGetCaptureProperty(capture, CV_CAP_PROP_FRAME_WIDTH);
 	int height = (int)cvGetCaptureProperty(capture, CV_CAP_PROP_FRAME_HEIGHT);
 	CvSize size = cvSize(width, height);
 
 
+	// cvCreateImage 함수를 사용하여 이전이미지 prevImage와 현재이미지 currImage 그리고 차영상을 위한 diffImage를 생성한다.
 	IplImage *prevImage = cvCreateImage(size, IPL_DEPTH_8U, 1);
 	IplImage *currImage = cvCreateImage(size, IPL_DEPTH_8U, 1);
 	IplImage *diffImage = cvCreateImage(size, IPL_DEPTH_8U, 1);
 	IplImage *frame = NULL;
 
-	system("pause");
+	int t = 0;    // frame count
+	int nThreshold = 50;
+
 	while (1) {
+		// capture로부터 프레임을 획득하여 포인터 frame에 저장한다.
 		frame = cvQueryFrame(capture);
 		if (!frame)    break;
-		cnt++;
+		t++;
+		//std::cout << (isCatch(diffImage) ? "MOVE!! " : "XXXXXX ") << t << "       " << isCatch(diffImage) << std::endl;
 
-		if (isCatch(diffImage) > 0 && start == 0) start = cnt;
+		if (isCatch(diffImage) > 0 && start == 0) {
+			arr[count].start = t;
+			start = t;
+		}
 		if (isCatch(diffImage) == 0 && start != 0) {
-			end = cnt;
+			arr[count].end = t;
+			count++;
+			end = t;
 			start = 0;
 			end = 0;
 		}
 
-		//printf("%d       %d\n", t, isCatch(diffImage));
 		if (start > 0) printf("■");
 		else printf("□");
 
-		cvCvtColor(frame, currImage, CV_BGR2GRAY);
-		cvThreshold(currImage, currImage, nThreshold, 255, CV_THRESH_BINARY);
 
-		cvSub(currImage, prevImage, diffImage, 0);
+		// cvCvtColor 함수를 사용하여 cvQueryFrame 함수로 획득한 frame을 그레이 스케일 영상으로 변환하여 grayImage에 저장한다.
+		cvCvtColor(frame, currImage, CV_BGR2GRAY);
+
+		// cvAbsDiff 함수로 현재의 입력 비디오 프레임과 그레이 스케일 영상인 grayImage와 배경 영상인 bkgImage와의 차이의 절대값을 계산하여 diffImage에 저장한다.
+		cvAbsDiff(currImage, prevImage, diffImage);
+
+		// diffImage에서 0인 화소는 변화가 없는 화소이며, 값이 크면 클수록 배경 영상과의 차이가 크게 일어난 화소이다.
+		// cvThreshold 함수를 사용하여 cvThreshold=50 이상인 화소만을 255로 저장하고, 임계값 이하인 값은 0으로 저장한다.
+		// 임계값은 실험 또는 자동으로 적절히 결정해야 한다.
+		cvThreshold(diffImage, diffImage, nThreshold, 255, CV_THRESH_BINARY);
 
 		cvShowImage("prevImage", prevImage);
 		cvShowImage("currImage", currImage);
@@ -71,10 +95,12 @@ int main()
 			break;
 		}
 
-		if (cnt == 300) cvWaitKey(0);
-
 		cvCvtColor(frame, prevImage, CV_BGR2GRAY);
-		cvThreshold(prevImage, prevImage, nThreshold, 255, CV_THRESH_BINARY);
+	}
+
+	printf("\n");
+	for (int i = 0; i < count; i++) {
+		printf("START: %5d   END: %5d\n", arr[i].start, arr[i].end);
 	}
 
 	cvDestroyAllWindows();
@@ -83,4 +109,3 @@ int main()
 	cvReleaseCapture(&capture);
 	return 0;
 }
-
