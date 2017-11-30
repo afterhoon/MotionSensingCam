@@ -1,11 +1,15 @@
-#include <iostream>
+#include <opencv2/opencv.hpp>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
+#include <iostream>
+using namespace cv;
+using namespace std;
+char* source_window = "Camera image";
 
 typedef struct point {
 	int start;
 	int end;
-} Point;
+} Point1;
 
 int isCatch(IplImage *image) {
 	int height, width;
@@ -24,37 +28,35 @@ int isCatch(IplImage *image) {
 	return moved;
 }
 
-int main()
-{
-	Point arr[10];
+int main(int argc, char** argv) {
+	Point1 arr[10];
 	int count = 0;
 	int start = 0, end = 0;
-
-	// 움직임을 검출할 영상을 포인터 capture에 저장한다.
-	CvCapture *capture = cvCaptureFromFile("test2.mp4");
-	if (!capture) {
-		std::cout << "The video file was not found" << std::endl;
-		return 0;
+	Mat src;
+	IplImage *frame;
+	VideoCapture InputVideo(0);
+	if (!InputVideo.isOpened()) {
+		cout << "Could not open reference" << 0 << endl;
+		return -1;
 	}
+	else
+		cout << "Connect camera device index" << 0 << endl;
 
-	// 영상의 사이즈를 구한다.
-	int width = (int)cvGetCaptureProperty(capture, CV_CAP_PROP_FRAME_WIDTH);
-	int height = (int)cvGetCaptureProperty(capture, CV_CAP_PROP_FRAME_HEIGHT);
-	CvSize size = cvSize(width, height);
-
-
-	// cvCreateImage 함수를 사용하여 이전이미지 prevImage와 현재이미지 currImage 그리고 차영상을 위한 diffImage를 생성한다.
+	InputVideo.read(src);
+	CvSize size = cvSize(src.cols, src.rows);
 	IplImage *prevImage = cvCreateImage(size, IPL_DEPTH_8U, 1);
 	IplImage *currImage = cvCreateImage(size, IPL_DEPTH_8U, 1);
 	IplImage *diffImage = cvCreateImage(size, IPL_DEPTH_8U, 1);
-	IplImage *frame = NULL;
 
 	int t = 0;    // frame count
 	int nThreshold = 50;
 
 	while (1) {
-		// capture로부터 프레임을 획득하여 포인터 frame에 저장한다.
-		frame = cvQueryFrame(capture);
+		InputVideo.read(src);
+		frame = cvCreateImage(cvSize(src.cols, src.rows), 8, 3);
+		IplImage ipltemp = src;
+		cvCopy(&ipltemp, frame);
+		
 		if (!frame)    break;
 		t++;
 		//std::cout << (isCatch(diffImage) ? "MOVE!! " : "XXXXXX ") << t << "       " << isCatch(diffImage) << std::endl;
@@ -69,10 +71,11 @@ int main()
 			end = t;
 			start = 0;
 			end = 0;
+			printf("START: %5d   END: %5d\n", arr[count - 1].start, arr[count - 1].end);
 		}
 
-		if (start > 0) printf("■");
-		else printf("□");
+//		if (start > 0) printf("■");
+//		else printf("□");
 
 
 		// cvCvtColor 함수를 사용하여 cvQueryFrame 함수로 획득한 frame을 그레이 스케일 영상으로 변환하여 grayImage에 저장한다.
@@ -97,15 +100,6 @@ int main()
 
 		cvCvtColor(frame, prevImage, CV_BGR2GRAY);
 	}
-
-	printf("\n");
-	for (int i = 0; i < count; i++) {
-		printf("START: %5d   END: %5d\n", arr[i].start, arr[i].end);
-	}
-
-	cvDestroyAllWindows();
-	cvReleaseImage(&currImage);
-	cvReleaseImage(&diffImage);
-	cvReleaseCapture(&capture);
-	return 0;
+	cvReleaseImage(&frame);
+	return (0);
 }
